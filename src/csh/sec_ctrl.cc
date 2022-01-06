@@ -524,13 +524,19 @@ SecCtrl::handleResponse(PacketPtr pkt)
                         if (pkt->getAddr() == validAddr) {
                             mtPkts[i] = pkt;
 
-                            sendMtPkt(i, true);
+                            if (pkt->req->getAccessDepth() == 0) {
+                                // No need more nodes
+                                updateChargeTime(curTick() + HASH_CYCLE * 1000);
 
-                            return;
+                                break;
+
+                            } else {
+                                sendMtPkt(i, true);
+
+                                return;
+                            }
                         }
                     }
-
-                    panic("Invalid addr");
                 }
             }
 
@@ -602,6 +608,11 @@ SecCtrl::handleResponse(PacketPtr pkt)
                 if (mtPkts[i] == nullptr) {
                     // Verification is not finished
                     return;
+                } else {
+                    if (mtPkts[i]->req->getAccessDepth() == 0) {
+                        // Verification is finished
+                        break;
+                    }
                 }
             }
 
@@ -613,6 +624,10 @@ SecCtrl::handleResponse(PacketPtr pkt)
 
                 if (mtPkts[i]->getAddr() != validAddr) {
                     panic("mtNode's addr is not valid");
+                }
+
+                if (mtPkts[i]->req->getAccessDepth() == 0) {
+                    break;
                 }
             }
 
