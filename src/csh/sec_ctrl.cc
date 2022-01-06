@@ -24,7 +24,10 @@ SecCtrl::SecCtrl(const SecCtrlParams &p) :
     needsResponse(true),
     cntBorder(0), macBorder(0), mtBorders{0},
     responsePkt(nullptr), counterPkt(nullptr), macPkt(nullptr),
-    mtPkts{nullptr}
+    mtPkts{nullptr},
+    pred(0),
+    hotRoot(0),
+    accessCnt{0}
 {
     DPRINTF(SecCtrl, "Constructing\n");
 
@@ -45,6 +48,8 @@ SecCtrl::SecCtrl(const SecCtrlParams &p) :
             mtBorders[MT_LEVEL-1-j] += node_space;
         }
     }
+
+    hotRoot = mtBorders[0];
 
 }
 
@@ -95,6 +100,35 @@ SecCtrl::CPUSidePort::recvFunctional(PacketPtr pkt)
 bool
 SecCtrl::CPUSidePort::recvTimingReq(PacketPtr pkt)
 {
+    /**
+     * ASSURE
+     */
+    ctrl->pred += 1;
+    ctrl->accessCnt[(pkt->getAddr() >> (3*ASSURE_HEIGHT)) / NODE_SPACE] += 1;
+
+    // Update hotRoot and Initialization
+    if (ctrl->pred >= ASSURE_N) {
+        // debug
+        for (uint16_t i=0; i<ASSURE_N; i++)
+            DPRINTF(SecCtrl, "debug i=%d cnt=%d\n", i, ctrl->accessCnt[i]);
+
+        ctrl->pred = 0;
+
+        uint16_t max = 0;
+        for (uint16_t i=0; i<ASSURE_N; i++) {
+            if (ctrl->accessCnt[i] > max) {
+                max = ctrl->accessCnt[i];
+                ctrl->hotRoot = ctrl->mtBorders[ASSURE_HEIGHT-1] + NODE_SPACE * i;
+            }
+
+            ctrl->accessCnt[i] = 0;
+        }
+
+        // debug
+        DPRINTF(SecCtrl, "hotRoot = %x\n", ctrl->hotRoot);
+
+    }
+
     if (ctrl->state == Idle) {
         DPRINTF(SecCtrl, "Got request %s\n", pkt->print());
 
@@ -489,6 +523,20 @@ SecCtrl::handleResponse(PacketPtr pkt)
 
             } else {
                 if (pkt->isRead()) {
+                    // ASSURE
+                    if (mtPkts[ASSURE_HEIGHT-2] != nullptr) {
+                        Addr addr =
+                            mtBorders[ASSURE_HEIGHT-1] + (verifiedCntOffs >> ASSURE_HEIGHT*3);
+                        addr = addr >> 6 << 6;
+                        if (addr == hotRoot) {
+                            DPRINTF(SecCtrl, "debug hit!\n");
+                        }
+
+                        updateChargeTime(curTick() + HASH_CYCLE * 1000);
+
+                        break;
+                    }
+
                     for (uint8_t i=0; i<MT_LEVEL-2; i++) {
                         Addr validAddr =
                             mtBorders[i] + (verifiedCntOffs >> ((i+1)*3));
@@ -600,21 +648,28 @@ SecCtrl::handleResponse(PacketPtr pkt)
 
             for (uint8_t i=0; i<MT_LEVEL-1; i++) {
                 if (mtPkts[i] == nullptr) {
+                    Addr addr =
+                        mtBorders[i] + (verifiedCntOffs >> (i+1)*3);
+                    addr = addr >> 6 << 6;
+                    if (addr == hotRoot) {
+                        break;
+                    }
+
                     // Verification is not finished
                     return;
                 }
             }
 
             // Sanity Check
-            for (uint8_t i=0; i<MT_LEVEL-1; i++) {
-                Addr validAddr =
-                    mtBorders[i] + (verifiedCntOffs >> ((i+1)*3));
-                validAddr = validAddr >> 3 << 3; // Alignment
+            // for (uint8_t i=0; i<MT_LEVEL-1; i++) {
+            //     Addr validAddr =
+            //         mtBorders[i] + (verifiedCntOffs >> ((i+1)*3));
+            //     validAddr = validAddr >> 3 << 3; // Alignment
 
-                if (mtPkts[i]->getAddr() != validAddr) {
-                    panic("mtNode's addr is not valid");
-                }
-            }
+            //     if (mtPkts[i]->getAddr() != validAddr) {
+            //         panic("mtNode's addr is not valid");
+            //     }
+            // }
 
             // Verification is finished
             schedule(writeVerFinished, chargeTime);

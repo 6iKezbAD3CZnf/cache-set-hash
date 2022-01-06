@@ -12,6 +12,10 @@
 #define MAC_CYCLE 80
 #define HASH_CYCLE 80
 
+#define ASSURE_HEIGHT 6
+#define ASSURE_N 64
+#define ASSURE_PRED 64
+
 namespace gem5
 {
 
@@ -253,6 +257,13 @@ class SecCtrl : public SimObject
 
     // Merkle Tree nodes without root
     PacketPtr mtPkts[MT_LEVEL-1];
+
+    /**
+     * ASSURE
+     */
+    uint16_t pred;
+    Addr hotRoot;
+    uint16_t accessCnt[ASSURE_N];
 
   public:
 
