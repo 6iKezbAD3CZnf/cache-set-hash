@@ -15,7 +15,7 @@ csh:
 	./gem5/build/RISCV/gem5.opt \
 		--debug-flags=SecCtrl \
 		./gem5/configs/csh/config.py \
-			--mem-size=1378127872B \
+			--mem-size=10890809344B \
 			--caches \
 			--cpu-type=DerivO3CPU \
 			--l1d_size=64kB \
@@ -27,6 +27,7 @@ csh:
 se:
 	./gem5/build/RISCV/gem5.opt \
 		./gem5/configs/example/se.py \
+			--mem-size=8589934592B \
 			--caches \
 			--cpu-type=DerivO3CPU \
 			--l1d_size=64kB \

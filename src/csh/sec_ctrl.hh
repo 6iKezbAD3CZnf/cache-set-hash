@@ -6,9 +6,9 @@
 #include "params/SecCtrl.hh"
 #include "sim/sim_object.hh"
 
-#define DATA_SPACE 0x40000000
+#define DATA_SPACE 0x200000000
 #define NODE_SPACE 0x200
-#define MT_LEVEL 6
+#define MT_LEVEL 6 // Actually, Level 7
 #define MAC_CYCLE 80
 #define HASH_CYCLE 80
 
