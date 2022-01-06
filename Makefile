@@ -9,13 +9,14 @@ hl:
 	ln -f ./src/csh/* ./gem5/src/csh
 
 build:
+	make hl
 	scons -C ./gem5 ./gem5/build/RISCV/gem5.opt -j 12
 
 csh:
 	./gem5/build/RISCV/gem5.opt \
 		--debug-flags=SecCtrl \
 		./gem5/configs/csh/config.py \
-			--mem-size=10890809344B \
+			--mem-size=10890809856B \
 			--caches \
 			--cpu-type=DerivO3CPU \
 			--l1d_size=64kB \
